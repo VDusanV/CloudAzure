@@ -1,0 +1,64 @@
+﻿@using FilmService_Data
+@model IEnumerable<FilmService_Data.Film>
+@{
+    ViewBag.Title = "Home Page";
+}
+<div class="container">
+    <h2>Pocetna Stranica</h2>
+</div>
+
+<form action="~/Home/Film" method="post">
+    <div class="form-group">
+        <p>Dodaj film (Ukoliko zelite i da azurirate, ukucajte naziv filma i popunite polja i film ce biti azuriran) </p>
+    </div>
+    <div class="form-group">
+        <label for="exampleInputPassword1">Naziv</label>
+        <input type="text" class="form-control" id="exampleInputPassword1" name="naziv" required>
+    </div>
+    <div class="form-group">
+        <label for="exampleInputPassword1">Godina</label>
+        <input type="number" class="form-control" id="exampleInputPassword1" name="godina" required>
+    </div>
+    <div class="form-group">
+        <label for="exampleInputPassword1">Zanr</label>
+        <input type="number" class="form-control" id="exampleInputPassword1" name="zanr" required>
+    </div>
+    <button type="submit" class="btn btn-default">Submit</button>
+</form>
+
+@if(ViewBag.filmovi != null)
+{
+   <table class="table">
+        <tr>
+            <th>
+                ID
+            </th>
+            <th>
+                Godina
+            </th>
+        </tr>
+      
+       @foreach (Film item in ViewBag.filmovi)
+            {
+                <tr>
+                    <td>
+                        @item.RowKey
+                    </td>
+                    <td>
+                        @item.Godina
+                    </td>
+                    <td>
+                        <form action="~/Home/DeleteFilm">
+                            <input type="submit" value="Izbrisi"/>
+                            <input type="text" value="@item.RowKey" name="naziv" hidden /> 
+                            <input type="text" value="@item.Godina" name="godina" hidden /> 
+                            <input type="text" value="@item.Zanr" name="zanr" hidden /> 
+                        </form>
+                    </td>
+
+           
+                </tr>
+            }
+            
+   </table>
+}

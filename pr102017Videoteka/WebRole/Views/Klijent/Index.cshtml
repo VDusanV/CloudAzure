@@ -1,0 +1,65 @@
+﻿@using FilmService_Data
+
+@{
+    ViewBag.Title = "Index";
+}
+
+<div class="container">
+    <h2>Stranica klijenata</h2>
+</div>
+
+<form action="~/Klijent/Klijent" method="post">
+    <div class="form-group">
+        <p>Dodaj Klijenta (Ukoliko zelite i da azurirate, ukucajte broj klijneta i popunite polja i klijent ce biti azuriran) </p>
+    </div>
+    <div class="form-group">
+        <label for="exampleInputPassword1">Broj telefona</label>
+        <input type="text" class="form-control" id="exampleInputPassword1" name="br" required>
+    </div>
+    <div class="form-group">
+        <label for="exampleInputPassword1">Ime</label>
+        <input type="text" class="form-control" id="exampleInputPassword1" name="ime" required>
+    </div>
+    <div class="form-group">
+        <label for="exampleInputPassword1">Prezime</label>
+        <input type="text" class="form-control" id="exampleInputPassword1" name="prezime" required>
+    </div>
+    <button type="submit" class="btn btn-default">Submit</button>
+</form>
+
+@if (ViewBag.klijenti != null)
+{
+    <table class="table">
+        <tr>
+            <th>
+                Broj Telefona
+            </th>
+            <th>
+                Ime
+            </th>
+        </tr>
+
+        @foreach (Klijent item in ViewBag.klijenti)
+        {
+            <tr>
+                <td>
+                    @item.RowKey
+                </td>
+                <td>
+                    @item.ime
+                </td>
+                <td>
+                    <form action="~/Klijent/DeleteKlijent">
+                        <input type="submit" value="Izbrisi" />
+                        <input type="text" value="@item.RowKey" name="br" hidden />
+                        <input type="text" value="@item.ime" name="ime" hidden />
+                        <input type="text" value="@item.prezime" name="prezime" hidden />
+                    </form>
+                </td>
+
+
+            </tr>
+        }
+
+    </table>
+}

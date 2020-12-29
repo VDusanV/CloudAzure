@@ -1,0 +1,155 @@
+-Listing glavnih delova implementacije čuvanja primarne instance
+
+Primarna klasa(IznajmljeniFilm) listing:
+
+ 	public string imeKlijenta { get; set; }
+        public string  brojTelefonaKlijenta { get; set; }
+
+        public IznajmljeniFilm(string nazivFilma,string imeK,string brojK)
+        {
+            PartitionKey = "Iznajmljeni";
+            RowKey = nazivFilma;
+            imeKlijenta = imeK;
+            brojTelefonaKlijenta = brojK;
+        }
+        public IznajmljeniFilm()
+        {
+
+        }
+
+Na view-u index.cshtml u folderu iznajmljeni moze se dodati, azurirati i obrisati primarna klasa.
+Pri azuriranju potrebno je uneti isti naziv filma instance koje zelimo da azuriramo i nakon toga uneta polja ce biti azurirana.
+Nakon toga se u IznajmljeniController-u salje instanca ka WriterWorekRole preko internal komunikacije.
+
+(IznajmljeniController)
+ public ActionResult Iznajmljen(string naziv, string ime, string br)
+        {
+            IznajmljeniFilm i = new IznajmljeniFilm(naziv, ime, br);
+            List<IznajmljeniFilm> iz = (List<IznajmljeniFilm>)HttpContext.Application["iznajmljeni"];
+
+            var binding = new NetTcpBinding();
+
+            RoleInstanceEndpoint inputEndPoint = RoleEnvironment.Roles["WriterWorkerRole"].Instances[0].InstanceEndpoints[handlerEndPoint];
+            string endpoint = String.Format("net.tcp://{0}/{1}", inputEndPoint.IPEndpoint, handlerEndPoint);
+
+            ChannelFactory<IWriteFilm> factory = new ChannelFactory<IWriteFilm>(binding, endpoint);
+            IWriteFilm proxy = factory.CreateChannel();
+            foreach (IznajmljeniFilm item in iz)
+            {
+                if (item.RowKey == i.RowKey)
+                {
+                    proxy.AzurirajIznajmljen(i);
+                    return RedirectToAction("Index");
+
+                }
+            }
+            proxy.UpisiIznajmljen(i);
+
+
+            return RedirectToAction("Index");
+
+
+
+Uz pomoc klase WriteFilmImplementacija i FilmDataRepository klasa upisuje u _tableIznajmljen. naziv table-a je IznajmljenTable.
+
+(WriteFilmImplementacija)
+public void UpisiIznajmljen(IznajmljeniFilm i)
+        {
+            FilmDataRepository repo = new FilmDataRepository();
+            repo.AddRented(i);
+            string s = "Dodajem iznajmljen film " + i.RowKey + " " + i.imeKlijenta + " " + i.brojTelefonaKlijenta  + " " + DateTime.Now.ToString();
+            CloudQueue queue = QueueHelper.GetQueueReference("queue");
+            queue.AddMessage(new CloudQueueMessage(s));
+        }
+
+
+
+(FilmDataRepository)
+ public void AddRented(IznajmljeniFilm f)
+        {
+            
+            TableOperation insertOperation = TableOperation.Insert(f);
+
+            _tableIznajmljen.Execute(insertOperation);
+        }
+
+Nakon ovih operacija Primarna klasa ce biti upisana u table(PartitionKey="Iznajmljeni" RowKey je sam naziv filma).
+
+
+
+-Listing implementacije komunikacije Write instanci i Logger-a
+
+
+WriteWorekRole i LogWorkerRole komuniciraju preko queue. Nakon poziva metode za upis u table na WriteWorkerRole poziva se i metoda za slanje podata u queue
+(WriteFilmImplementacija)
+public void UpisiIznajmljen(IznajmljeniFilm i)
+        {
+            FilmDataRepository repo = new FilmDataRepository();
+            repo.AddRented(i);
+            string s = "Dodajem iznajmljen film " + i.RowKey + " " + i.imeKlijenta + " " + i.brojTelefonaKlijenta  + " " + DateTime.Now.ToString();
+            CloudQueue queue = QueueHelper.GetQueueReference("queue");
+            queue.AddMessage(new CloudQueueMessage(s));
+        }
+
+Potom u metodi RunAsync na LogWorkerRole se dobavljaju poruke iz queue. 
+(linija 77 u WorkerRole klasi u LogWorkerRole projektu)
+receivedMessage = cloudQueue.GetMessage();
+
+Queue se inicijalizuje uz pomoc QueueHelper klase koja se nalazi u FilmService_Data projektu.
+
+(QueueHelper klasa)
+  public class QueueHelper
+    {
+        public static CloudQueue GetQueueReference(String queueName)
+        {
+            CloudStorageAccount storageAccount = CloudStorageAccount.Parse(CloudConfigurationManager.GetSetting("DataConnectionString"));
+            CloudQueueClient queueClient = storageAccount.CreateCloudQueueClient();
+            CloudQueue queue = queueClient.GetQueueReference(queueName);
+            queue.CreateIfNotExists();
+
+            return queue;
+        }
+    }
+
+
+-Navesti nazive resursa u Cloud-u (nazive tabela, kontejnera i sl.), parametri u okviru Queue-a
+
+Nazivi table (FilmService_Data --> FilmDataRepository):
+	
+_table - za upis filma pod referencom "FilmTable"
+_tableKlijent - za upis klijenta pod referencom "KlijentTable"
+_tableIznajmljen - za upis iznajmljenog filma pod referencom "IznajmljenTable"
+
+Naziv kontejnera - blob
+
+
+
+-Opisati nekoliko test slučajeva koji se mogu izvršiti kako bi se svi aspekti sistema pokrili i testirali
+
+Pokrenuti projekat, izabrati stranicu sa iznajmljenim filmovima, popuniti polja i poslati, zatim u solutionu pokrenuti projekat LogKlijent i uneti 1. 
+Time ce se pokriti sve worker role. ReaderWorkerRole ce na stranici za unos novog iznajmljenog filma dobaviti iz table sve do sad iznajmljene filmove.
+WriterWorkerRole ce upisati instancu u table i poslati poruku u queue. Zatim ce LogWorkerRole preuzeti poruku iz queue i upisati u blob i na kraju
+Consolna aplikacija LogKlijent ce zahtevati poruku od LogWorkerRole koja ce dobaviti iz bloba i poslati joj.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
